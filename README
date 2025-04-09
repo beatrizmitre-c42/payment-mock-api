@@ -18,13 +18,14 @@ URL: http://localhost:4242/payments
 Method: POST
 Request Body:
 
-json
+```json
 {
   "amount": 150.00,
   "paymentType": "PIX",
   "pixKey": "12345678000190",
   "description": "Monthly subscription"
-}
+}```
+
 Check Payment Status
 URL: http://localhost:4242/payments/{transactionId}
 Method: GET
