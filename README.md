@@ -20,7 +20,7 @@ npm install
 
 3. Start the server:
 ```bash
-node pix-payment-mock-server.js
+node server.js
 ```
 
 The server will run on `http://localhost:4242`.
