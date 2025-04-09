@@ -7,7 +7,7 @@ const HOST = 'localhost';
 
 const transactions = new Map();
 
-const shouldFail = () => Math.random() < 0.25;
+const shouldFail = () => false
 
 const generatePixTransactionId = () => {
   return `PIX${Date.now()}${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
@@ -48,8 +48,6 @@ fastify.post('/payments', async (request, reply) => {
   if (shouldFail()) {
     const errorTypes = [
       { code: 'PIX_TIMEOUT', message: 'PIX payment processing timed out' },
-      { code: 'INVALID_PIX_KEY', message: 'The provided PIX key is invalid or not registered' },
-      { code: 'INSUFFICIENT_FUNDS', message: 'Insufficient funds for this transaction' },
       { code: 'SYSTEM_UNAVAILABLE', message: 'PIX system temporarily unavailable' }
     ];
 
@@ -125,7 +123,7 @@ fastify.get('/payments/:transactionId', async (request, reply) => {
         transactionId
       });
     } else {
-      const possibleStatuses = ['waiting_payment', 'processing', 'completed', 'expired', 'failed'];
+      const possibleStatuses = ['waiting_payment', 'completed'];
       const randomStatus = possibleStatuses[Math.floor(Math.random() * possibleStatuses.length)];
 
       const pixCopyPasteCode = generatePixCopyPasteCode();
@@ -151,7 +149,7 @@ fastify.get('/payments/:transactionId', async (request, reply) => {
   const pixPaymentInfo = transaction.status === 'waiting_payment' ? transaction.pixPaymentInfo : undefined;
 
   if (transaction.status === 'waiting_payment' && Math.random() < 0.3) {
-    const newStatus = Math.random() < 0.8 ? 'completed' : 'failed';
+    const newStatus = Math.random() < 0.8 ? 'completed' : 'waiting_payment';
     transaction.status = newStatus;
     transaction.lastUpdated = new Date().toISOString();
     transactions.set(transactionId, transaction);
