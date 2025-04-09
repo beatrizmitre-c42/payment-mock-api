@@ -3,8 +3,9 @@ Clone this repository or download the source code
 
 Install dependencies:
 
-bash
+```sh
 npm install
+```
 Start the server:
 
 bash
