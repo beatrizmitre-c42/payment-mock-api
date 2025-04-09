@@ -8,26 +8,30 @@ npm install
 ```
 Start the server:
 
-bash
+```sh
 node server.js
+```
+
 The server will run on http://localhost:4242.
 
 API Documentation
 
-Create a PIX Payment
+*Create a PIX Payment*
 URL: http://localhost:4242/payments
 Method: POST
 Request Body:
 
+```sh
 json
 {
   "amount": 150.00,
   "paymentType": "PIX",
   "pixKey": "12345678000190",
   "description": "Monthly subscription"
-}
+}```
 
-Check Payment Status
+*Check Payment Status*
+
 URL: http://localhost:4242/payments/{transactionId}
 Method: GET
 (Replace {transactionId} with the actual transaction ID received from the payment creation response)
@@ -44,6 +48,7 @@ Method: POST
 Headers: Authorization: AppID YOUR_APP_ID, Content-Type: application/json
 Request Body:
 
+```sh
 json
 {
   "value": 100,
@@ -51,7 +56,8 @@ json
   "destinationAliasType": "CNPJ",
   "comment": "payment comment",
   "correlationID": "payment1"
-}
+}```
+
 Get Payment Status:
 URL: https://api.openpix.com.br/payment/{id}
 Method: GET
