@@ -22,7 +22,6 @@ Method: POST
 Request Body:
 
 ```sh
-json
 {
   "amount": 150.00,
   "paymentType": "PIX",
@@ -49,7 +48,6 @@ Headers: Authorization: AppID YOUR_APP_ID, Content-Type: application/json
 Request Body:
 
 ```sh
-json
 {
   "value": 100,
   "destinationAlias": "12345678000190",
@@ -57,9 +55,3 @@ json
   "comment": "payment comment",
   "correlationID": "payment1"
 }```
-
-Get Payment Status:
-URL: https://api.openpix.com.br/payment/{id}
-Method: GET
-Headers: Authorization: AppID YOUR_APP_ID
-(Replace {id} with payment ID or correlation ID)
