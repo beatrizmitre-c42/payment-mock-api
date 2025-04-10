@@ -7,39 +7,30 @@ const HOST = 'localhost';
 
 const transactions = new Map();
 
-const shouldFail = () => false
+const shouldFail = () => false;
 
-const generatePixTransactionId = () => {
-  return `PIX${Date.now()}${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
-};
-
-const generatePixCopyPasteCode = () => {
-  const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
-  let result = '';
-  for (let i = 0; i < 77; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
+const generateCreditCardTransactionId = () => {
+  return `CC${Date.now()}${Math.random().toString(36).substring(2, 10).toUpperCase()}`;
 };
 
 fastify.post('/payments', async (request, reply) => {
-  const { amount, paymentType, pixKey, description } = request.body;
+  const { amount, paymentType, cardNumber, cardHolderName, expirationDate, cvv } = request.body;
 
   fastify.log.info(`Payment attempt received: $${amount}`);
 
-  if (paymentType !== 'PIX') {
+  if (paymentType !== 'CREDIT_CARD') {
     return reply.code(400).send({
       success: false,
-      error: 'Only PIX payments are supported',
-      supportedTypes: ['PIX']
+      error: 'Only credit card payments are supported',
+      supportedTypes: ['CREDIT_CARD']
     });
   }
 
-  if (!amount || !pixKey) {
+  if (!amount || !cardNumber || !cardHolderName || !expirationDate || !cvv) {
     return reply.code(400).send({
       success: false,
       error: 'Missing required payment information',
-      requiredFields: ['amount', 'pixKey']
+      requiredFields: ['amount', 'cardNumber', 'cardHolderName', 'expirationDate', 'cvv']
     });
   }
 
@@ -47,8 +38,8 @@ fastify.post('/payments', async (request, reply) => {
 
   if (shouldFail()) {
     const errorTypes = [
-      { code: 'PIX_TIMEOUT', message: 'PIX payment processing timed out' },
-      { code: 'SYSTEM_UNAVAILABLE', message: 'PIX system temporarily unavailable' }
+      { code: 'CARD_DECLINED', message: 'Credit card was declined' },
+      { code: 'SYSTEM_UNAVAILABLE', message: 'Payment system temporarily unavailable' }
     ];
 
     const error = errorTypes[Math.floor(Math.random() * errorTypes.length)];
@@ -62,31 +53,20 @@ fastify.post('/payments', async (request, reply) => {
     });
   }
 
-  const transactionId = generatePixTransactionId();
-  const endToEndId = `E${transactionId.substring(3, 15)}`;
+  const transactionId = generateCreditCardTransactionId();
   const timestamp = new Date().toISOString();
-  const expiresAt = new Date(Date.now() + 3600000).toISOString();
-
-  const pixCopyPasteCode = generatePixCopyPasteCode();
-  const pixQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pixCopyPasteCode)}`;
 
   const transaction = {
     transactionId,
-    endToEndId,
     amount,
-    description: description || 'PIX payment',
+    description: `Credit card payment`,
     status: 'waiting_payment',
-    receiverInfo: {
-      type: 'CNPJ',
-      key: pixKey
-    },
-    paymentType: 'PIX',
+    paymentType: 'CREDIT_CARD',
     timestamp,
-    expiresAt,
-    pixPaymentInfo: {
-      pixKey: pixKey,
-      pixCopyPasteCode: pixCopyPasteCode,
-      pixQrCodeUrl: pixQrCodeUrl
+    creditCardInfo: {
+      cardNumber,
+      cardHolderName,
+      expirationDate
     },
     estimatedCreditTime: new Date(Date.now() + 60000).toISOString()
   };
@@ -106,47 +86,15 @@ fastify.get('/payments/:transactionId', async (request, reply) => {
 
   await new Promise(resolve => setTimeout(resolve, 50 + Math.random() * 450));
 
-  if (Math.random() < 0.15) {
-    return reply.code(500).send({
+  if (!transactions.has(transactionId)) {
+    return reply.code(404).send({
       success: false,
-      error: 'Failed to retrieve payment status',
-      errorCode: 'STATUS_CHECK_FAILED',
-      timestamp: new Date().toISOString()
+      error: 'Transaction not found',
+      transactionId
     });
   }
 
-  if (!transactions.has(transactionId)) {
-    if (Math.random() < 0.5) {
-      return reply.code(404).send({
-        success: false,
-        error: 'Transaction not found',
-        transactionId
-      });
-    } else {
-      const possibleStatuses = ['waiting_payment', 'completed'];
-      const randomStatus = possibleStatuses[Math.floor(Math.random() * possibleStatuses.length)];
-
-      const pixCopyPasteCode = generatePixCopyPasteCode();
-      const pixQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(pixCopyPasteCode)}`;
-
-      return {
-        success: true,
-        transactionId,
-        status: randomStatus,
-        timestamp: new Date(Date.now() - Math.random() * 86400000).toISOString(), // Random time in the last 24h
-        lastUpdated: new Date().toISOString(),
-        pixPaymentInfo: randomStatus === 'waiting_payment' ? {
-          pixKey: "12345678000190", // Example CNPJ
-          pixCopyPasteCode: pixCopyPasteCode,
-          pixQrCodeUrl: pixQrCodeUrl
-        } : undefined
-      };
-    }
-  }
-
   const transaction = transactions.get(transactionId);
-
-  const pixPaymentInfo = transaction.status === 'waiting_payment' ? transaction.pixPaymentInfo : undefined;
 
   if (transaction.status === 'waiting_payment' && Math.random() < 0.3) {
     const newStatus = Math.random() < 0.8 ? 'completed' : 'waiting_payment';
@@ -163,19 +111,20 @@ fastify.get('/payments/:transactionId', async (request, reply) => {
     description: transaction.description,
     paymentType: transaction.paymentType,
     timestamp: transaction.timestamp,
-    pixPaymentInfo: pixPaymentInfo,
+    creditCardInfo:
+      transaction.status === 'waiting_payment' ? transaction.creditCardInfo : undefined,
     lastUpdated: transaction.lastUpdated || new Date().toISOString()
   };
 });
 
 fastify.get('/health', async () => {
-  return { status: 'ok', paymentSystem: 'PIX', country: 'Brazil' };
+  return { status: 'ok', paymentSystem: 'CREDIT_CARD', country: 'Global' };
 });
 
 const start = async () => {
   try {
     await fastify.listen({ port: PORT, host: HOST });
-    fastify.log.info(`PIX payment mock server running on ${HOST}:${PORT}`);
+    fastify.log.info(`Credit card payment mock server running on ${HOST}:${PORT}`);
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);
